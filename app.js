@@ -1,9 +1,17 @@
 const appEl = document.getElementById("app");
 
-const ASSETS = {
-  rock: "https://openmoji.org/data/color/svg/270A.svg",
-  paper: "https://openmoji.org/data/color/svg/270B.svg",
-  scissors: "https://openmoji.org/data/color/svg/270C.svg",
+const COLORS = {
+  outer: "#E5E5E5",
+  panel: "#F2F7FC",
+  blue: "#006CFC",
+  blueDark: "#001997",
+  green: "#009048",
+  greenShadow: "#77C2A2",
+  ink: "#0B0B0B",
+  skin: "#FFCAB9",
+  skin2: "#FABBA7",
+  win: "#8B8C54",
+  lose: "#8A5A5A",
 };
 
 const state = {
@@ -54,11 +62,11 @@ function setCSSPattern() {
     <path d="M62 24v24"/>
   </g>
 </svg>
-`.trim()
+`.trim(),
   );
   document.documentElement.style.setProperty(
     "--pattern",
-    `url("data:image/svg+xml,${svg}")`
+    `url("data:image/svg+xml,${svg}")`,
   );
 }
 
@@ -69,6 +77,7 @@ const routes = {
   "#/rules": RulesPage,
   "#/play": GamePage,
   "#/result": ResultPage,
+  "#/components": ComponentsPage,
 };
 
 function navigate(hash) {
@@ -111,9 +120,9 @@ function HomePage() {
       </div>
 
       <div class="home-bottom">
-        ${HandImg("scissors", 92)}
-        ${HandImg("rock", 98)}
-        ${HandImg("paper", 96)}
+        ${HandSVG("scissors", 86)}
+        ${HandSVG("rock", 96)}
+        ${HandSVG("paper", 92)}
       </div>
     </div>
   `;
@@ -137,9 +146,9 @@ function RulesPage() {
       </div>
 
       <div class="home-bottom small-hands-fade">
-        ${HandImg("scissors", 86)}
-        ${HandImg("rock", 92)}
-        ${HandImg("paper", 90)}
+        ${HandSVG("scissors", 80)}
+        ${HandSVG("rock", 90)}
+        ${HandSVG("paper", 86)}
       </div>
     </div>
   `;
@@ -173,7 +182,6 @@ function startCountdown() {
 
     if (leftMs <= 0) {
       clearInterval(countdownTimer);
-      countdownTimer = null;
       lockAndResolve();
       return;
     }
@@ -184,25 +192,23 @@ function startCountdown() {
 
 function lockAndResolve() {
   state.round.locked = true;
-
   const userPick = state.round.userPick || randomPick();
   const cpuPick = randomPick();
-
   state.round.userPick = userPick;
   state.round.cpuPick = cpuPick;
+  state.round.result = decide(userPick, cpuPick);
 
-  const res = decide(userPick, cpuPick);
-  state.round.result = res;
-
-  if (res === "win") state.score.user += 1;
-  if (res === "lose") state.score.cpu += 1;
+  if (state.round.result === "win") state.score.user += 1;
+  if (state.round.result === "lose") state.score.cpu += 1;
 
   saveScore();
 
   state.round.phase = "reveal";
   render();
 
-  setTimeout(() => navigate("#/result"), 650);
+  setTimeout(() => {
+    navigate("#/result");
+  }, 650);
 }
 
 function GamePage() {
@@ -220,14 +226,14 @@ function GamePage() {
       </div>
 
       <div class="choices-row" aria-label="Elegí una opción">
-        <button class="choice-btn" data-pick="scissors" ${disabled} aria-label="Tijera">
-          ${HandImg("scissors", 118)}
+        <button class="choice-btn" data-pick="scissors" ${disabled}>
+          ${HandSVG("scissors", 110)}
         </button>
-        <button class="choice-btn" data-pick="rock" ${disabled} aria-label="Piedra">
-          ${HandImg("rock", 128)}
+        <button class="choice-btn" data-pick="rock" ${disabled}>
+          ${HandSVG("rock", 122)}
         </button>
-        <button class="choice-btn" data-pick="paper" ${disabled} aria-label="Papel">
-          ${HandImg("paper", 124)}
+        <button class="choice-btn" data-pick="paper" ${disabled}>
+          ${HandSVG("paper", 118)}
         </button>
       </div>
 
@@ -236,10 +242,10 @@ function GamePage() {
           ? `
         <div class="duel" aria-hidden="true">
           <div class="top">
-            ${HandImg(state.round.cpuPick, 228, { flipped: true })}
+            ${HandSVG(state.round.cpuPick, 210, { flipped: true })}
           </div>
           <div class="bottom">
-            ${HandImg(state.round.userPick, 228)}
+            ${HandSVG(state.round.userPick, 210)}
           </div>
         </div>
       `
@@ -272,6 +278,43 @@ function ResultPage() {
           </div>
 
           <button class="btn" data-action="play-again">Volver a Jugar</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function ComponentsPage() {
+  return `
+    <div class="panel-frame">
+      <div class="components-sheet">
+        <div class="components-row">
+          ${MiniIcon("note")}
+          ${MiniIcon("rock")}
+          ${MiniIcon("scissors")}
+        </div>
+
+        <div class="components-row">
+          ${HandSVG("scissors", 84)}
+          ${HandSVG("rock", 92)}
+          ${HandSVG("paper", 88)}
+        </div>
+
+        <div class="components-row">
+          <button class="btn" data-action="go-rules">Empezar</button>
+          <div style="width: 24px"></div>
+          <div class="star">
+            ${StarBurst("Ganaste", "#6BAE6B")}
+          </div>
+        </div>
+
+        <div class="components-row">
+          <div class="countwrap">${CountdownCircle(3, 0.75)}</div>
+        </div>
+
+        <div class="note">
+          Tipografía: Odibee Sans
+          <div class="linkish">https://fonts.google.com/specimen/Odibee+Sans</div>
         </div>
       </div>
     </div>
@@ -316,9 +359,11 @@ function bind(route) {
     });
   });
 
-  if (route === "#/play" && state.round.phase !== "countdown") {
-    resetRound();
-    render();
+  if (
+    route === "#/play" &&
+    state.round.phase === "countdown" &&
+    !countdownTimer
+  ) {
     startCountdown();
   }
 
@@ -349,7 +394,7 @@ function CountdownCircle(n, progress) {
   const dash = Math.max(0, Math.min(1, progress)) * c;
 
   return `
-    <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-label="Cuenta regresiva" role="img">
+    <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-label="Cuenta regresiva">
       <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="rgba(255,255,255,0.58)"></circle>
       <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="rgba(0,0,0,0.15)" stroke-width="${stroke}"></circle>
       <circle
@@ -363,7 +408,7 @@ function CountdownCircle(n, progress) {
         stroke-dasharray="${dash} ${c}"
         transform="rotate(-90 ${size / 2} ${size / 2})"
       ></circle>
-      <text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle" font-size="84" fill="#0B0B0B">${n}</text>
+      <text x="50%" y="54%" text-anchor известно="0" text-anchor="middle" dominant-baseline="middle" font-size="84" fill="#0B0B0B">${n}</text>
     </svg>
   `;
 }
@@ -394,7 +439,7 @@ function StarBurst(text, fill) {
            Z"
         fill="${fill}"
         stroke="${stroke}"
-        stroke-width="6"
+        stroke-width="5"
         stroke-linejoin="round"
       ></path>
       <text
@@ -410,28 +455,84 @@ function StarBurst(text, fill) {
   `;
 }
 
-function HandImg(kind, size, opts = {}) {
-  const src = ASSETS[kind] || ASSETS.rock;
+function HandSVG(kind, size, opts = {}) {
   const flipped = Boolean(opts.flipped);
+  const w = size;
+  const h = Math.round(size * 1.15);
+  const scaleX = flipped ? -1 : 1;
+  const tx = flipped ? w : 0;
 
-  const style = [
-    `width:${size}px`,
-    `height:auto`,
-    `display:block`,
-    `user-select:none`,
-    `pointer-events:none`,
-    flipped ? `transform:scaleX(-1)` : ``,
-  ]
-    .filter(Boolean)
-    .join(";");
+  if (kind === "paper") {
+    return `
+      <svg width="${w}" height="${h}" viewBox="0 0 120 140" style="transform: scaleX(${scaleX}); translate: ${tx}px 0;">
+        <g fill="${COLORS.skin}" stroke="#0B0B0B" stroke-width="7" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M40 20c0-10 10-16 20-16s20 6 20 16v64c0 8-6 14-14 14H54c-8 0-14-6-14-14V20z" />
+          <path d="M34 64h52" />
+          <path d="M34 82h52" />
+          <path d="M34 100h52" />
+          <path d="M44 118c0 10 7 18 16 18h0c9 0 16-8 16-18" />
+        </g>
+      </svg>
+    `;
+  }
 
-  const altMap = {
-    rock: "Piedra",
-    paper: "Papel",
-    scissors: "Tijera",
-  };
+  if (kind === "rock") {
+    return `
+      <svg width="${w}" height="${h}" viewBox="0 0 120 140" style="transform: scaleX(${scaleX}); translate: ${tx}px 0;">
+        <g fill="${COLORS.skin}" stroke="#0B0B0B" stroke-width="7" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M34 62c0-14 12-26 26-26h0c14 0 26 12 26 26v28c0 10-8 18-18 18H52c-10 0-18-8-18-18V62z" />
+          <path d="M46 42v-10" />
+          <path d="M60 38v-10" />
+          <path d="M74 42v-10" />
+          <path d="M44 108v28" />
+          <path d="M76 108v28" />
+        </g>
+      </svg>
+    `;
+  }
 
-  return `<img src="${src}" alt="${altMap[kind] || "Mano"}" style="${style}" draggable="false">`;
+  return `
+    <svg width="${w}" height="${h}" viewBox="0 0 120 140" style="transform: scaleX(${scaleX}); translate: ${tx}px 0;">
+      <g fill="${COLORS.skin}" stroke="#0B0B0B" stroke-width="7" stroke-linejoin="round" stroke-linecap="round">
+        <path d="M34 70c0-14 12-26 26-26h0c14 0 26 12 26 26v20c0 10-8 18-18 18H52c-10 0-18-8-18-18V70z" />
+        <path d="M44 68V30c0-10 8-18 18-18" />
+        <path d="M64 12c10 0 18 8 18 18v32" />
+        <path d="M54 32v34" />
+        <path d="M72 32v34" />
+        <path d="M44 112v26" />
+        <path d="M76 112v26" />
+      </g>
+    </svg>
+  `;
+}
+
+function MiniIcon(type) {
+  const base = `stroke="#0B0B0B" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"`;
+  if (type === "note") {
+    return `
+      <svg width="74" height="74" viewBox="0 0 120 120">
+        <path d="M18 22h68l16 16v60H18z" fill="#FFE08A" ${base}></path>
+        <path d="M86 22v20h20" fill="none" ${base}></path>
+      </svg>
+    `;
+  }
+  if (type === "rock") {
+    return `
+      <svg width="74" height="74" viewBox="0 0 120 120">
+        <path d="M24 74l20-40h40l12 30-18 30H40z" fill="#9EA4AF" ${base}></path>
+      </svg>
+    `;
+  }
+  return `
+    <svg width="74" height="74" viewBox="0 0 120 120">
+      <path d="M34 30l18 18" fill="none" ${base}></path>
+      <path d="M52 48l-22 38c-2 4 2 8 6 6l38-22" fill="none" ${base}></path>
+      <path d="M58 30l18 18" fill="none" ${base}></path>
+      <path d="M76 48l22 38c2 4-2 8-6 6L54 70" fill="none" ${base}></path>
+      <circle cx="44" cy="72" r="4" fill="#0B0B0B"></circle>
+      <circle cx="76" cy="72" r="4" fill="#0B0B0B"></circle>
+    </svg>
+  `;
 }
 
 window.addEventListener("hashchange", () => {
